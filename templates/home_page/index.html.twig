@@ -1,0 +1,185 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}SHARR .{% endblock %}
+
+{% block body %}
+<head>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Configuration cruciale pour l'alignement texte/couleur */
+        #highlighting, #txtInput {
+            line-height: 1.5rem;
+            font-family: 'ui-monospace', monospace;
+            tab-size: 4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* Couleurs de l'éditeur */
+        .token-keyword { color: #569cd6; font-weight: bold; }    /* if, function, return */
+        .token-type { color: #4ec9b0; }                        /* int, string, void */
+        .token-function { color: #dcdcaa; }                    /* nomDeFonction() */
+        .token-variable { color: #9cdcfe; }                    /* $maVar */
+        .token-string { color: #ce9178; }                      /* "texte" */
+        .token-comment { color: #6a9955; font-style: italic; } /* // commentaire */
+        .token-number { color: #b5cea8; }                      /* 123 */
+    </style>
+</head>
+
+<div class="fixed inset-0 flex flex-col bg-[#1e1e1e] text-white">
+    
+    <header class="h-16 flex items-center justify-between px-6 bg-[#252526] border-b border-[#333] relative z-[100]">
+        <span class="text-2xl font-mono font-black tracking-tighter hover:opacity-80 transition">
+            <a href="/">SHARR<span class="text-blue-500">.</span></a>
+        </span>
+
+        <div class="flex items-center gap-4">
+            <div id="status-dot" class="flex items-center gap-2 text-[10px] font-mono text-gray-500 bg-[#2d2d2d] px-3 py-1 rounded-full border border-[#444]">
+                <div id="dot" class="w-2 h-2 rounded-full bg-green-500"></div>
+                <span id="status-text">PRÊT</span>
+            </div>
+
+            <div class="relative">
+                <button onclick="toggleMenu()" class="text-2xl p-2 rounded hover:bg-[#37373d] transition focus:outline-none">☰</button>
+                <div id="dropdown" class="hidden absolute right-0 mt-2 w-64 bg-[#252526] border border-[#454545] rounded shadow-2xl overflow-hidden">
+                    <div class="p-3 bg-[#2d2d2d] text-xs font-bold text-gray-400 uppercase tracking-widest">Historique</div>
+                    <div class="max-h-48 overflow-y-auto">
+                        <a href="#" class="block p-3 text-sm hover:bg-[#37373d] border-b border-[#333] text-blue-400 font-mono">share.fr/{{ token }}</a>
+                    </div>
+                    <button onclick="openModal()" class="w-full text-left p-3 text-sm hover:bg-[#37373d] transition flex items-center gap-2">❓ Comment ça marche</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 relative overflow-hidden bg-[#1e1e1e] flex">
+        <div id="line-numbers" class="w-12 bg-[#1e1e1e] text-[#858585] text-right pr-4 pt-8 font-mono text-base select-none border-r border-[#333] z-10">
+            <div>1</div>
+        </div>
+
+        <div class="flex-1 relative">
+            <pre id="highlighting" aria-hidden="true" 
+                 class="absolute inset-0 pt-8 pl-4 m-0 pointer-events-none overflow-hidden text-[#d4d4d4] z-0"></pre>
+            
+            <textarea
+                id="txtInput"
+                class="absolute inset-0 w-full h-full pt-8 pl-4 bg-transparent text-transparent caret-white font-mono text-base resize-none outline-none border-none focus:ring-0 z-10 selection:bg-[#264f78]/50"
+                spellcheck="false"
+                placeholder="// Tape ton code ici..."
+            >{{ codeSpace.txtInput }}</textarea>
+        </div>
+    </main>
+</div>
+
+<div id="modal" class="fixed inset-0 bg-black/70 items-center justify-center z-[200] hidden flex">
+    <div class="bg-[#252526] rounded-lg max-w-lg w-full mx-4 border border-[#454545] shadow-2xl">
+        <div class="p-6 border-b border-[#333]"><h2 class="text-xl font-bold">Pourquoi Sharr ?</h2></div>
+        <div class="p-6 text-gray-400 text-sm space-y-4">
+            <p>Sharr permet au formateur de partager son code instantanément. Les élèves suivent en temps réel.</p>
+            <p class="bg-[#1e1e1e] p-3 rounded border border-[#333] font-mono text-blue-400">share.fr/{{ token }}</p>
+        </div>
+        <div class="p-4 bg-[#2d2d2d] flex justify-end">
+            <button onclick="closeModal()" class="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded font-bold transition">OK</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const input = document.getElementById('txtInput');
+    const highlighting = document.getElementById('highlighting');
+    const lineNumbersEle = document.getElementById('line-numbers');
+    const dot = document.getElementById('dot');
+    const statusText = document.getElementById('status-text');
+
+    function toggleMenu() { document.getElementById('dropdown').classList.toggle('hidden'); }
+    function openModal() { document.getElementById('modal').classList.remove('hidden'); }
+    function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+
+    // --- MOTEUR DE COLORATION ---
+    function updateEditor() {
+        let code = input.value;
+
+        // 1. Numéros de ligne
+        const lines = code.split('\n').length;
+        lineNumbersEle.innerHTML = Array.from({length: lines}, (_, i) => `<div>${i + 1}</div>`).join('');
+
+        // 2. Coloration Syntaxique
+        let html = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+        html = html
+            // Commentaires
+            .replace(/\/\/(.*)/g, '<span class="token-comment">//$1</span>')
+            // Strings
+            .replace(/"(.*?)"/g, '<span class="token-string">"$1"</span>')
+            .replace(/'(.*?)'/g, '<span class="token-string">\'$1\'</span>')
+            // Keywords
+            .replace(/\b(function|return|if|else|for|while|class|public|private|protected|static|new|use|namespace|const|let|var)\b/g, '<span class="token-keyword">$1</span>')
+            // Typages (Types de données)
+            .replace(/\b(int|string|bool|boolean|float|void|array|object|iterable|mixed|any|number)\b/g, '<span class="token-type">$1</span>')
+            // Nombres
+            .replace(/\b(\d+)\b/g, '<span class="token-number">$1</span>')
+            // Fonctions
+            .replace(/\b(\w+)(?=\()/g, '<span class="token-function">$1</span>')
+            // Variables ($php ou let var)
+            .replace(/\$([a-zA-Z0-9_]+)/g, '<span class="token-variable">$$$1</span>');
+
+        highlighting.innerHTML = html + (code.endsWith('\n') ? ' ' : '');
+    }
+
+    // --- SYNCHRONISATION ---
+    input.addEventListener('input', () => {
+        updateEditor();
+        debouncedUpdate();
+    });
+
+    input.addEventListener('scroll', () => {
+        highlighting.scrollTop = input.scrollTop;
+        highlighting.scrollLeft = input.scrollLeft;
+        lineNumbersEle.scrollTop = input.scrollTop;
+    });
+
+    // Support de la touche Tab
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const start = this.selectionStart;
+            this.value = this.value.substring(0, start) + "    " + this.value.substring(this.selectionEnd);
+            this.selectionStart = this.selectionEnd = start + 4;
+            updateEditor();
+        }
+    });
+
+    // --- ENVOI SERVEUR ---
+    function sendToServer() {
+        dot.style.backgroundColor = '#eab308';
+        statusText.innerText = "SYNCHRONISATION...";
+
+        fetch(`/{{ token }}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ champ: input.value })
+        })
+        .then(res => res.json())
+        .then(() => {
+            dot.style.backgroundColor = '#22c55e';
+            statusText.innerText = "SYNCHRONISÉ";
+        })
+        .catch(() => {
+            dot.style.backgroundColor = '#ef4444';
+            statusText.innerText = "ERREUR";
+        });
+    }
+
+    function debounce(func, wait) {
+        let timeout;
+        return (...args) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+    }
+    const debouncedUpdate = debounce(sendToServer, 400);
+
+    // Initialisation
+    updateEditor();
+</script>
+{% endblock %}
