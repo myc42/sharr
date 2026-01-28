@@ -32,6 +32,12 @@ class CodeSpace
     #[ORM\Column(type: Types::DATE_MUTABLE)]
     private ?\DateTime $date_create = null;
 
+    #[ORM\Column]
+    private ?bool $isFinish = null;
+
+    #[ORM\Column]
+    private ?bool $hasStarted = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -105,6 +111,30 @@ class CodeSpace
     public function setDateCreate(\DateTime $date_create): static
     {
         $this->date_create = $date_create;
+
+        return $this;
+    }
+
+    public function isFinish(): ?bool
+    {
+        return $this->isFinish;
+    }
+
+    public function setIsFinish(bool $isFinish): static
+    {
+        $this->isFinish = $isFinish;
+
+        return $this;
+    }
+
+    public function hasStarted(): ?bool
+    {
+        return $this->hasStarted;
+    }
+
+    public function setHasStarted(bool $hasStarted): static
+    {
+        $this->hasStarted = $hasStarted;
 
         return $this;
     }

@@ -33,6 +33,8 @@ final class HomePageController extends AbstractController
         $entity->setDateExpire(new \DateTime('tomorrow')); 
         $entity->setIsRegister(false);                    
         $entity->setIsUpdate(false);
+        $entity->setIsFinish(false);
+        $entity->setHasStarted(false);
 
          $em->persist($entity);
          $em->flush() ;
@@ -42,26 +44,45 @@ final class HomePageController extends AbstractController
     }
 
 
-#[Route('/{token}', name: 'app_codespace', methods: ['GET', 'POST'])]
-    public function codespace(EntityManagerInterface $em, string $token, Request $request): Response
-    {
-        $repository = $em->getRepository(CodeSpace::class);
-        $codeSpace = $repository->findOneBy(['link' => $token]);
-        if (!$codeSpace) {
-          return $this->redirectToRoute('app_home');}
-        
-    if ($request->isXmlHttpRequest() && $request->isMethod('POST')) {
+
+#[Route('/{token}', name: 'app_codespace', methods: ['GET','POST'])]
+public function codespace(EntityManagerInterface $em, string $token, Request $request): Response
+{
+    $repository = $em->getRepository(CodeSpace::class);
+    $codeSpace = $repository->findOneBy(['link' => $token]);
+
+    if (!$codeSpace) {
+        return $this->redirectToRoute('app_home');
+    }
+
+    if ($request->isMethod('POST')) {
+
+        if ($codeSpace->isFinish()) {
+            return $this->json([
+                'status' => 'error',
+                'message' => 'Ce CodeSpace est verrouillé.'
+            ], 403);
+        }
+
         $data = json_decode($request->getContent(), true);
-        $codeSpace->setTxtInput($data['champ'] ?? '');
+
+        if (isset($data['champ'])) {
+            $codeSpace->setTxtInput($data['champ']);
+        }
+
+        if (isset($data['isFinished']) && $data['isFinished'] === true) {
+            $codeSpace->setIsFinish(true);
+        }
+
         $em->flush();
 
         return $this->json(['status' => 'ok']);
     }
-    
-       return $this->render('home_page/index.html.twig', [
-            'codeSpace' => $codeSpace,
-            'token' => $token , 
-         ]);
 
-    }
+    return $this->render('home_page/index.html.twig', [
+        'codeSpace' => $codeSpace,
+        'token' => $token,
+        'isReadOnly' => $codeSpace->isFinish(),
+    ]);
+}
 }
