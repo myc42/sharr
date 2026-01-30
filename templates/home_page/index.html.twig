@@ -33,8 +33,8 @@
 
         <div class="flex items-center gap-4">
             <div id="status-dot" class="flex items-center gap-2 text-[10px] font-mono text-gray-500 bg-[#2d2d2d] px-3 py-1 rounded-full border border-[#444]">
-                <div id="dot" class="w-2 h-2 rounded-full bg-green-500"></div>
-                <span id="status-text">PRÊT</span>
+                <div id="dot" class="w-2 h-2 rounded-full bg-yellow-500"></div>
+                <span id="status-text">INITIALISATION...</span>
             </div>
 
             <div class="relative">
@@ -50,7 +50,7 @@
         </div>
     </header>
 
-    <main class="flex-1 relative overflow-hidden bg-[#1e1e1e] flex {{ isReadOnly ? 'opacity-90' : '' }}">
+    <main class="flex-1 relative overflow-hidden bg-[#1e1e1e] flex">
         <div id="line-numbers" class="w-12 bg-[#1e1e1e] text-[#858585] text-right pr-4 pt-8 font-mono text-base select-none border-r border-[#333] z-10">
             <div>1</div>
         </div>
@@ -63,16 +63,15 @@
                 id="txtInput"
                 class="absolute inset-0 w-full h-full pt-8 pl-4 bg-transparent text-transparent caret-white font-mono text-base resize-none outline-none border-none focus:ring-0 z-10 selection:bg-[#264f78]/50"
                 spellcheck="false"
-                placeholder="// Tape ton code ici..."
-                {{ isReadOnly ? 'readonly' : '' }}
+                placeholder="// Initialisation..."
+                readonly
             >{{ codeSpace.txtInput }}</textarea>
         </div>
 
-        {% if isReadOnly %}
-            <div class="absolute bottom-4 right-6 z-50 bg-blue-600/20 border border-blue-500/50 text-blue-400 text-[10px] px-3 py-1 rounded-full font-mono">
-                MODE LECTURE SEULE
-            </div>
-        {% endif %}
+        <div id="readonly-badge" class="hidden absolute bottom-4 right-6 z-50 bg-blue-600/20 border border-blue-500/50 text-blue-400 text-[10px] px-3 py-1 rounded-full font-mono items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
+            MODE LECTURE SEULE
+        </div>
     </main>
 </div>
 
@@ -90,13 +89,31 @@
 </div>
 
 <script>
+    // --- GÉNÉRATION D'UN ID UNIQUE PAR NAVIGATEUR ---
+    function getClientId() {
+        let clientId = localStorage.getItem('sharr_client_id');
+        if (!clientId) {
+            clientId = 'client_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+            localStorage.setItem('sharr_client_id', clientId);
+        }
+        return clientId;
+    }
+
     // --- VARIABLES GLOBALES ---
     const input = document.getElementById('txtInput');
     const highlighting = document.getElementById('highlighting');
     const lineNumbersEle = document.getElementById('line-numbers');
     const dot = document.getElementById('dot');
     const statusText = document.getElementById('status-text');
-    const isReadOnly = {{ isReadOnly ? 'true' : 'false' }};
+    const readonlyBadge = document.getElementById('readonly-badge');
+    const clientId = getClientId();
+    
+    let isWriter = false;
+    let isReadOnly = true;
+    let pollInterval = null;
+    let initialized = false;
+
+    console.log('Mon Client ID:', clientId);
 
     // --- INTERFACE ---
     function toggleMenu() { document.getElementById('dropdown').classList.toggle('hidden'); }
@@ -123,9 +140,42 @@
         highlighting.innerHTML = html + (code.endsWith('\n') ? ' ' : '');
     }
 
+    // --- CLAIM WRITER DÈS LE DÉPART ---
+    async function claimWriterStatus() {
+        try {
+            const response = await fetch(`/{{ token }}/claim-writer`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ clientId: clientId })
+            });
+
+            const data = await response.json();
+            console.log('Claim writer result:', data);
+
+            if (data.isWriter) {
+                switchToWriter();
+            } else {
+                switchToReader();
+                // Démarrer le polling immédiatement pour les lecteurs
+                pollInterval = setInterval(pollUpdates, 2000);
+                pollUpdates(); // Premier appel immédiat
+            }
+
+            initialized = true;
+
+        } catch (error) {
+            console.error('Erreur claim writer:', error);
+            // En cas d'erreur, on reste en lecture seule par sécurité
+            switchToReader();
+        }
+    }
+
     // --- SYNCHRONISATION ---
     function sendToServer() {
-        if (isReadOnly) return; // Sécurité JS
+        if (isReadOnly || !isWriter) {
+            console.log('Bloqué: mode lecture seule');
+            return;
+        }
 
         dot.style.backgroundColor = '#eab308';
         statusText.innerText = "SYNCHRONISATION...";
@@ -133,17 +183,80 @@
         fetch(`/{{ token }}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-            body: JSON.stringify({ champ: input.value })
+            body: JSON.stringify({ 
+                champ: input.value,
+                clientId: clientId 
+            })
         })
         .then(res => res.json())
-        .then(() => {
-            dot.style.backgroundColor = '#22c55e';
-            statusText.innerText = "SYNCHRONISÉ";
+        .then(data => {
+            console.log('Réponse serveur:', data);
+            if (data.status === 'error') {
+                console.log('Erreur serveur, passage en mode lecteur');
+                switchToReader();
+                if (!pollInterval) {
+                    pollInterval = setInterval(pollUpdates, 2000);
+                }
+            } else {
+                dot.style.backgroundColor = '#22c55e';
+                statusText.innerText = "ÉDITEUR";
+            }
         })
-        .catch(() => {
+        .catch(err => {
+            console.error('Erreur:', err);
             dot.style.backgroundColor = '#ef4444';
             statusText.innerText = "ERREUR";
         });
+    }
+
+    // --- POLLING POUR LES LECTEURS ---
+    function pollUpdates() {
+        if (!isReadOnly) return; // Ne poll que si on est lecteur
+
+        fetch(`/{{ token }}/poll?clientId=${clientId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    // Mettre à jour le contenu
+                    input.value = data.content || '';
+                    updateEditor();
+                    
+                    if (data.isFinished) {
+                        clearInterval(pollInterval);
+                        statusText.innerText = "SESSION TERMINÉE";
+                        dot.style.backgroundColor = "#6b7280";
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Erreur polling:', error);
+            });
+    }
+
+    // --- BASCULER EN MODE WRITER ---
+    function switchToWriter() {
+        console.log('✅ Je suis WRITER');
+        isWriter = true;
+        isReadOnly = false;
+        input.removeAttribute('readonly');
+        input.placeholder = '// Tape ton code ici...';
+        dot.style.backgroundColor = '#22c55e';
+        statusText.innerText = "ÉDITEUR";
+        readonlyBadge.classList.add('hidden');
+        readonlyBadge.classList.remove('flex');
+    }
+
+    // --- BASCULER EN MODE READER ---
+    function switchToReader() {
+        console.log('👁️ Je suis LECTEUR');
+        isWriter = false;
+        isReadOnly = true;
+        input.setAttribute('readonly', 'readonly');
+        input.placeholder = '// En attente du formateur...';
+        dot.style.backgroundColor = '#3b82f6';
+        statusText.innerText = "LECTEUR";
+        readonlyBadge.classList.remove('hidden');
+        readonlyBadge.classList.add('flex');
     }
 
     function debounce(func, wait) {
@@ -155,43 +268,53 @@
     }
     const debouncedUpdate = debounce(sendToServer, 400);
 
-    // --- ÉVÉNEMENTS ---
-    if (!isReadOnly) {
-        input.addEventListener('input', () => {
+    // --- ÉVÉNEMENTS D'ÉCRITURE ---
+    input.addEventListener('input', () => {
+        updateEditor();
+        if (!isReadOnly && isWriter) {
+            debouncedUpdate();
+        }
+    });
+
+    input.addEventListener('keydown', function(e) {
+        if (isReadOnly) {
+            e.preventDefault(); // Bloquer toute frappe en mode lecture
+            return;
+        }
+        
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const start = this.selectionStart;
+            this.value = this.value.substring(0, start) + "    " + this.value.substring(this.selectionEnd);
+            this.selectionStart = this.selectionEnd = start + 4;
             updateEditor();
             debouncedUpdate();
-        });
+        }
+    });
 
-        input.addEventListener('keydown', function(e) {
-            if (e.key === 'Tab') {
-                e.preventDefault();
-                const start = this.selectionStart;
-                this.value = this.value.substring(0, start) + "    " + this.value.substring(this.selectionEnd);
-                this.selectionStart = this.selectionEnd = start + 4;
-                updateEditor();
-                debouncedUpdate();
-            }
-        });
-
-        window.addEventListener('beforeunload', () => {
-            const data = JSON.stringify({ isFinished: true });
-            const blob = new Blob([data], { type: 'application/json' });
-            navigator.sendBeacon(`/{{ token }}`, blob);
-        });
-    } else {
-        // État visuel figé pour la lecture seule
-        statusText.innerText = "SESSION TERMINÉE";
-        dot.style.backgroundColor = "#6b7280";
-        input.style.cursor = "default";
-    }
-
+    // --- SCROLL SYNCHRONISÉ ---
     input.addEventListener('scroll', () => {
         highlighting.scrollTop = input.scrollTop;
         highlighting.scrollLeft = input.scrollLeft;
         lineNumbersEle.scrollTop = input.scrollTop;
     });
 
-    // Initialisation au chargement
+    // --- FERMETURE DE LA SESSION ---
+    window.addEventListener('beforeunload', () => {
+        if (isWriter && !isReadOnly) {
+            const data = JSON.stringify({ 
+                isFinished: true,
+                clientId: clientId 
+            });
+            const blob = new Blob([data], { type: 'application/json' });
+            navigator.sendBeacon(`/{{ token }}`, blob);
+        }
+    });
+
+    // --- INITIALISATION ---
     updateEditor();
+    
+    // CLAIM LE STATUT DÈS LE CHARGEMENT
+    claimWriterStatus();
 </script>
 {% endblock %}

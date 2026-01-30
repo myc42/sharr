@@ -38,6 +38,9 @@ class CodeSpace
     #[ORM\Column]
     private ?bool $hasStarted = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $writerId = null;
+    
     public function getId(): ?int
     {
         return $this->id;
@@ -135,6 +138,18 @@ class CodeSpace
     public function setHasStarted(bool $hasStarted): static
     {
         $this->hasStarted = $hasStarted;
+
+        return $this;
+    }
+
+    public function getWriterId(): ?string
+    {
+        return $this->writerId;
+    }
+
+    public function setWriterId(?string $writerId): static
+    {
+        $this->writerId = $writerId;
 
         return $this;
     }
