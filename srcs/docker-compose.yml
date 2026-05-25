@@ -1,0 +1,14 @@
+services:
+  web:
+    image: shinsenter/symfony:php8.4
+    volumes:
+      - ./symfony:/var/www/html
+      #- ./my_domain.crt:/etc/ssl/site/server.crt
+      #- ./my_domain.key:/etc/ssl/site/server.key
+    ports:
+      - "8080:80"
+  redis:
+    image: redis:8.6.3-trixie
+    container_name: redis
+    ports:
+      - "6379:6379"

@@ -1,0 +1,56 @@
+composer require symfony/cache
+composer require predis/predis
+
+
+Un spammeur peut aussi essayer d'envoyer un texte de 50 Mo d'un seul coup
+dans le POST pour saturer la RAM de votre serveur et l'espace Redis.
+
+
+Si vous laissez la route /api/autosave telle quelle, totalement ouverte 
+et sans protection, n'importe qui (ou plutôt un script automatisé en Python ou
+un simple curl dans un terminal) peut envoyer 10 000 requêtes POST par seconde.
+
+
+Le CSRF sert uniquement à dire :
+
+“Cette requête vient-elle bien de MON site et du navigateur de l’utilisateur ?”
+
+Mais pas :
+“Qui est l’utilisateur ?”
+
+
+Le CSRF ne l’empêchera pas, parce que :
+
+CSRF protège contre un site tiers qui agit “à la place de l’utilisateur”
+mais un script qui appelle ton API directement = ce n’est pas du CSRF
+
+
+=---------=
+
+Champ invisible :
+
+<input name="email_confirm" style="display:none">
+
+Si rempli → bot
+
+2. Première règle : tu dois toujours avoir une “propriété”
+
+Même sans login, chaque contenu doit avoir un owner implicite.
+
+Solution simple (sans compte utilisateur)
+👉 générer un token propriétaire
+
+Quand quelqu’un crée un snippet :
+
+$ownerToken = bin2hex(random_bytes(32));
+
+Tu stockes :
+
+snippet:
+- id: 123
+- content: "code"
+- owner_token: abc123
+
+Et tu donnes au client :
+
+
