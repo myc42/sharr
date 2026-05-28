@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sharr — {{token}}</title>
+    
+    {# Fonts #}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+    
+    {# Icons #}
+    <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-solid-rounded/css/uicons-solid-rounded.css">
+    
+    {# Custom CSS #}
+    <link rel="stylesheet" href="{{ asset('css/sharr.css') }}">
+</head>
+<body  data-theme="light" 
+    data-room-token="{{ token }}" 
+    data-csrf-token="{{ csrf_token }}" 
+    data-save-url="{{ path('app_room', {'token': token}) }}"
+    data-editable="true" data-theme="light">
+
+    <nav class="nav">
+        <div class="nav-l">
+            <a href="#" class="logo">
+                <div class="logo-box"><i class="fi fi-sr-code-simple"></i></div>
+                <span class="logo-text">Sharr</span>
+            </a>
+            <div class="sep"></div>
+            <button class="btn" id="copyLinkBtn">
+                <i class="fi fi-sr-copy-alt"></i>
+                <span id="copyLinkLabel">Lien</span>
+            </button>
+        </div>
+        <div class="nav-r">
+            <div class="toggle" id="themeToggle">
+                <div class="toggle-knob"><i class="fi fi-sr-moon" id="themeIcon"></i></div>
+            </div>
+            <button class="btn" id="historyBtn">
+                <i class="fi fi-sr-time-past"></i>
+                Historique
+            </button>
+        </div>
+    </nav>
+
+    <div class="sidebar" id="sidebar">
+        <div class="sb-head">
+            <span class="sb-head-title">Historique</span>
+            <button class="icon-btn" id="closeSidebar"><i class="fi fi-sr-cross-small"></i></button>
+        </div>
+        <div class="sb-scroll" id="historyList">
+            <div class="empty-state">
+                <div class="empty-icon"><i class="fi fi-sr-document-signed"></i></div>
+                <p class="empty-title">Aucun historique</p>
+                <p class="empty-sub">Sauvegarde automatique après 3 s d'inactivité.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="shell">
+        <div class="body">
+            <div class="linenos" id="lines"></div>
+            <div class="zone">
+                <textarea id="input" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off">{{ item }}</textarea>
+                <pre id="output"></pre>
+                <div class="caret-el" id="caret"></div>
+            </div>
+        </div>
+        <div class="statusbar">
+            <div class="st blue"><i class="fi fi-sr-circle-small"></i><span id="stLang">JavaScript</span></div>
+            <div class="st"><i class="fi fi-sr-cursor-text"></i><span id="stCursor">Ln 1, Col 1</span></div>
+            <div class="st"><i class="fi fi-sr-text"></i><span id="stChars">0 car.</span></div>
+            <div class="st right"><i class="fi fi-sr-check-circle"></i><span id="stSave">Sauvegarde auto</span></div>
+        </div>
+    </div>
+
+    {# JavaScript #}
+   
+   {# JavaScript pour la sauvegarde automatique AJAX #}
+     
+
+ <script src="{{ asset('js/autosave.js') }}"></script>
+     <script src="{{ asset('js/sharr-hist.js') }}"></script>
+    <script src="{{ asset('js/sharr.js') }}"></script>
+
+</body>
+</html>

@@ -1,0 +1,6 @@
+framework:
+    rate_limiter:
+        autosave_limiter:
+            policy: 'token_bucket'
+            limit: 15
+            rate: { amount: 5, interval: '1 minute' }
