@@ -69,6 +69,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusText.textContent = 'Erreur de sauvegarde';
             });
 
-        }, 3000); // 3000 millisecondes = 3 secondes
+        }, 100); // 3000 millisecondes = 3 secondes
     });
 });
