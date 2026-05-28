@@ -9,4 +9,5 @@ public/bundles/
 vendor/
 .env
 .env.dev
+.env*
 ###< symfony/framework-bundle ###
