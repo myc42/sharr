@@ -4,7 +4,9 @@
 
 return [
     'app_room' => [['token'], ['_controller' => 'App\\Controller\\HomeController::room'], [], [['variable', '/', '[^/]++', 'token', true]], [], [], []],
+    'test_ip' => [[], ['_controller' => 'App\\Controller\\HomeController::testIp'], [], [['text', '/api/test-ip']], [], [], []],
     'app_home' => [[], ['_controller' => 'App\\Controller\\HomeController::index'], [], [['text', '/']], [], [], []],
     'App\Controller\HomeController::room' => [['token'], ['_controller' => 'App\\Controller\\HomeController::room'], [], [['variable', '/', '[^/]++', 'token', true]], [], [], []],
+    'App\Controller\HomeController::testIp' => [[], ['_controller' => 'App\\Controller\\HomeController::testIp'], [], [['text', '/api/test-ip']], [], [], []],
     'App\Controller\HomeController::index' => [[], ['_controller' => 'App\\Controller\\HomeController::index'], [], [['text', '/']], [], [], []],
 ];

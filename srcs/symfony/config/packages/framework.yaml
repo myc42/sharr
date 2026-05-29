@@ -5,11 +5,20 @@ framework:
     # Note that the session will be started ONLY if you read or write from it.
     session: true
 
-    #esi: true
-    #fragments: true
+    # esi: true
+    # fragments: true
+
+    trusted_proxies: '10.0.0.1' # IP exacte de ton reverse proxy, jamais '*'
+
+    trusted_headers:
+        - 'x-forwarded-for'
+        - 'x-forwarded-proto'
+        - 'x-forwarded-port'
+        # NE PAS inclure x-forwarded-host sans validation supplémentaire
 
 when@test:
     framework:
         test: true
+
         session:
             storage_factory_id: session.storage.factory.mock_file

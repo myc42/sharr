@@ -44,14 +44,20 @@ final class HomeController extends AbstractController
                     return new JsonResponse(['message' => 'Room introuvable.'], Response::HTTP_NOT_FOUND);
                 }
 
-               
 
-                if (isset($currentCache['creator_ip']) && $currentCache['creator_ip'] !== $request->getClientIp()) {
+                            // $currentCache['creator_ip'] !== $request->getClientIp()
+
+                           
+                if (isset($currentCache['creator_ip']) &&  $currentCache['creator_ip'] !== $request->server->get('REMOTE_ADDR')
+) {
                     return new JsonResponse(['message' => 'Vous n\'êtes pas le propriétaire.'], Response::HTTP_FORBIDDEN);
                 }
 
+               
                // --- 2. RATE LIMITER (Désactivé temporairement pour le test) ---
-                $limiter = $autosaveLimiter->create($request->getClientIp());
+               // $limiter = $autosaveLimiter->create($request->getClientIp());
+
+                $limiter = $autosaveLimiter->create($request->server->get('REMOTE_ADDR'));
                 if (false === $limiter->consume(1)->isAccepted()) {
                     return new JsonResponse(['message' => 'Trop de requêtes. Veuillez patienter.'], Response::HTTP_TOO_MANY_REQUESTS);
                 }
@@ -65,6 +71,12 @@ final class HomeController extends AbstractController
                 $content = $data['content'] ?? null;
                 $submittedToken = $request->headers->get('X-CSRF-TOKEN');
                 $forceLock = $data['force_lock'] ?? false; 
+
+                $content = htmlspecialchars(
+    strip_tags($content),
+    ENT_QUOTES | ENT_SUBSTITUTE,
+    'UTF-8'
+);
 
                 if ($content === null || !$submittedToken) {
                     return new JsonResponse(['message' => 'Données manquantes (content ou header X-CSRF-TOKEN).'], Response::HTTP_BAD_REQUEST);
@@ -84,7 +96,7 @@ final class HomeController extends AbstractController
                     $topic,
                     json_encode([
                         'content'     => $content,
-                        //'is_editable' => $nextEditableState,
+                        'is_editable' => $nextEditableState,
                         'token'       => $token,
                     ])
                 );
@@ -164,6 +176,15 @@ final class HomeController extends AbstractController
             'item' => $data['content'] ?? " ", 
             'is_editable' => $data['is_editable'] ?? false,
         ]);
+    }
+
+   #[Route('/api/test-ip', name: 'test_ip')]
+    public function testIp(Request $request): JsonResponse
+    {
+   return new JsonResponse([
+    'getClientIp'  => $request->getClientIp(),
+    'REMOTE_ADDR'  => $request->server->get('REMOTE_ADDR'),
+]);
     }
 
     #[Route('/', name: 'app_home')]
