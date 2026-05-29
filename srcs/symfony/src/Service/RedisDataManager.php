@@ -7,9 +7,13 @@ use Psr\Cache\CacheItemPoolInterface;
 class RedisDataManager
 {
     private const TTL = 86400; // 24 heures
+    private const DAILY_LIMIT = 5000;
 
     public function __construct(private CacheItemPoolInterface $cachePool) {}
 
+
+   
+    
     // 1. ÉCRIRE
     // Ajout du paramètre $creatorIp (optionnel par sécurité)
    public function writeData(string $key, string $content, ?string $creatorIp, bool $isModifiable): void
@@ -55,4 +59,27 @@ class RedisDataManager
         $this->writeData($key, $currentData, false);
     }
 }
+
+public function checkAndIncrementDailyRoomLimit(int $limit = 5000): bool
+{
+    $key = 'rooms_daily_' . date('Y-m-d');
+    $cacheItem = $this->cachePool->getItem($key);
+
+    $count = $cacheItem->isHit() ? (int) $cacheItem->get() : 0;
+
+    // LOG TEMPORAIRE
+   // error_log(">>> ROOM LIMIT CHECK — clé: $key | count: $count | limit: $limit");
+
+    if ($count >= $limit) {
+        return false;
+    }
+
+    $cacheItem->set($count + 1);
+    $cacheItem->expiresAfter(86400);
+    $this->cachePool->save($cacheItem);
+
+    return true;
+}
+
+
 }

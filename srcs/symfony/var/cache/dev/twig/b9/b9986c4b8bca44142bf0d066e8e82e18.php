@@ -125,26 +125,15 @@ class __TwigTemplate_2477c6d1c5a57789e3ab6b680baf8ca6 extends Template
     const topic = window.location.pathname.replace(\x27/\x27, \x27\x27);
     const url = new URL(\"http://localhost:9090/.well-known/mercure\");
     url.searchParams.append(\"topic\", \"http://localhost:8080/\" + topic);
-
-
     const fullTopic = \"http://localhost:8080/\" + topic;
-    console.log(\"🔍 Topic abonné:\", fullTopic);
-
-
     const es = new EventSource(url.toString());
-
     es.onopen = () => console.log(\"✅ Connecté à Mercure !\");
 
     es.onmessage = (e) => {
-        console.log(\"je suis ici dans onmessage \\n \");
         const data = JSON.parse(e.data);
-        console.log(\"📨 Message reçu:\", data);
-
         const newContent = data.content;
-        console.log(newContent);
-
     document.getElementById(\x27input\x27).value = newContent;
-        init(); // init() gère déjà stChars, stLang, output et les numéros de ligne
+        init(); 
     };
     es.onerror = (e) => console.error(\"❌ Erreur:\", e, \"État:\", es.readyState);
 </script>
@@ -250,26 +239,15 @@ class __TwigTemplate_2477c6d1c5a57789e3ab6b680baf8ca6 extends Template
     const topic = window.location.pathname.replace(\x27/\x27, \x27\x27);
     const url = new URL(\"http://localhost:9090/.well-known/mercure\");
     url.searchParams.append(\"topic\", \"http://localhost:8080/\" + topic);
-
-
     const fullTopic = \"http://localhost:8080/\" + topic;
-    console.log(\"🔍 Topic abonné:\", fullTopic);
-
-
     const es = new EventSource(url.toString());
-
     es.onopen = () => console.log(\"✅ Connecté à Mercure !\");
 
     es.onmessage = (e) => {
-        console.log(\"je suis ici dans onmessage \\n \");
         const data = JSON.parse(e.data);
-        console.log(\"📨 Message reçu:\", data);
-
         const newContent = data.content;
-        console.log(newContent);
-
     document.getElementById(\x27input\x27).value = newContent;
-        init(); // init() gère déjà stChars, stLang, output et les numéros de ligne
+        init(); 
     };
     es.onerror = (e) => console.error(\"❌ Erreur:\", e, \"État:\", es.readyState);
 </script>

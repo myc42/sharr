@@ -163,3 +163,9 @@ Confiance aveugle envers getClientIp()	FAIBLE	En présence d'un reverse proxy (C
 pendant ce temps quand un utilisateur arrive sur cette page , il a deja un code qui a creer un chanel avec ce mercure 
 et mercure lenvois les donnes en json . 
 donc mercure je lutilise quand celui qui ecrire est encore , dans le cas contraire redis affiche . 
+
+
+
+php bin/console cache:clear --env=prod
+php bin/console cache:warmup --env=prod
+rm -rf var/cache/prod/

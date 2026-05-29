@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     setTimeout(() => {
                         statusText.textContent = 'Sauvegarde auto';
-                    }, 2000);
+                    }, 100);
                 }
             })
             .catch(error => {
@@ -69,6 +69,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusText.textContent = 'Erreur de sauvegarde';
             });
 
-        }, 100); // 3000 millisecondes = 3 secondes
+        }, 1000); // 3000 millisecondes = 3 secondes
     });
 });

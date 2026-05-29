@@ -17,6 +17,7 @@ use Symfony\Component\Mercure\Update;
 
 final class HomeController extends AbstractController
 {
+    
     #[Route('/{token}', name: 'app_room')]
     public function room(
         Request $request, 
@@ -29,6 +30,10 @@ final class HomeController extends AbstractController
 
     ): Response {
         
+
+        $token = strtolower($token);
+
+    
         // --- GESTION DE LA SAUVEGARDE AJAX ---
         if($request->isMethod('POST') && $request->getContentTypeFormat() === 'json') {
             try {
@@ -39,9 +44,7 @@ final class HomeController extends AbstractController
                     return new JsonResponse(['message' => 'Room introuvable.'], Response::HTTP_NOT_FOUND);
                 }
 
-                if (isset($currentCache['is_editable']) && $currentCache['is_editable'] === false) {
-                    return new JsonResponse(['message' => 'Ce document est verrouillé.', 'is_editable' => false], Response::HTTP_FORBIDDEN);
-                }
+               
 
                 if (isset($currentCache['creator_ip']) && $currentCache['creator_ip'] !== $request->getClientIp()) {
                     return new JsonResponse(['message' => 'Vous n\'êtes pas le propriétaire.'], Response::HTTP_FORBIDDEN);
@@ -74,28 +77,29 @@ final class HomeController extends AbstractController
                 }
 
                 // --- 5. VÉRIFICATION TAILLE ---
-                if (mb_strlen($content) > 100000) { 
-                    return $this->redirectToRoute('app_home');
-                    return new JsonResponse(['message' => 'Contenu trop volumineux.'], Response::HTTP_BAD_REQUEST);
-                }
 
-                // --- 6. ÉCRITURE DANS REDIS ---
-                $nextEditableState = $forceLock ? false : true;
-
-                $redisManager->writeData($token, $content, $request->getClientIp(), $nextEditableState);
-
-                                // --- MERCURE : publication temps réel ---
                 $topic = 'http://localhost:8080/' . $token; // identique côté frontend
-
+                
                 $update = new Update(
                     $topic,
                     json_encode([
                         'content'     => $content,
-                        'is_editable' => $nextEditableState,
+                        //'is_editable' => $nextEditableState,
                         'token'       => $token,
                     ])
                 );
                  $hub->publish($update);
+
+               
+                 if (mb_strlen($content) > 100000) { 
+                            $content = mb_substr($content, 0, 50000);
+                 }
+                // --- 6. ÉCRITURE DANS REDIS ---
+                $nextEditableState = $forceLock ? false : true;
+
+                $redisManager->writeData($token, $content, $request->getClientIp(), $nextEditableState);
+                                // --- MERCURE : publication temps réel ---
+                
 
 // --- FIN MERCURE ---
                 
@@ -104,7 +108,8 @@ final class HomeController extends AbstractController
                         return new JsonResponse([
                             'status' => 'success',
                             'message' => 'Mis à jour avec succès.',
-                            'is_editable' => $nextEditableState
+                            'is_editable' => $nextEditableState,
+                           
                         ], Response::HTTP_OK);
 
                     } catch (\Exception $e) {
@@ -114,7 +119,7 @@ final class HomeController extends AbstractController
                             'debug' => $e->getMessage() // Laissé actif au cas où on aurait encore un souci
                         ], Response::HTTP_INTERNAL_SERVER_ERROR);
                     }
-                }
+        }
 
         // --- AFFICHAGE DE LA PAGE NORMALE ---
         $data = $redisManager->readData($token);
@@ -123,9 +128,20 @@ final class HomeController extends AbstractController
             // 1. Initialisation Auteur
             $clientIp = $request->getClientIp();
             $content = " ";
+            
             if (!preg_match('/^[A-Za-z0-9]{1,32}$/', $token) || strlen($token) < 3) {
                 return $this->redirectToRoute('app_home');
             }
+
+            if (!$redisManager->checkAndIncrementDailyRoomLimit()) {
+                    return $this->render(
+    'bundles/TwigBundle/Exception/error503.html.twig',
+    [],
+    new Response(status: 503)
+);         
+               }
+            
+             
             $redisManager->writeData($token, $content, $clientIp, true);
 
             // On génère un token CSRF unique pour cette room
@@ -153,9 +169,14 @@ final class HomeController extends AbstractController
     #[Route('/', name: 'app_home')]
     public function index(): Response
     {
-        $token = substr(bin2hex(random_bytes(2)), 0, 4  );
+        $token = substr(bin2hex(random_bytes(2)), 0, 3  );
+        
         return $this->redirectToRoute('app_room', [
             'token' => $token
         ]);
     }
+
+
+
+    
 }
